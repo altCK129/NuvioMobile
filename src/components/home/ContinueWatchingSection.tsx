@@ -1196,8 +1196,8 @@ const ContinueWatchingSection = React.forwardRef<ContinueWatchingRef>((props, re
               // Always preferring local was wrong: if you watched on another device,
               // Trakt's paused_at is newer and should win for ordering purposes.
               const mergedLastUpdated = Math.max(
-                (it.lastUpdated ?? 0), 
-                (mostRecentLocal.lastUpdated ?? 0)
+                (mostRecentLocal.lastUpdated ?? 0), 
+                (it.lastUpdated ?? 0)
               );
 
               try {
