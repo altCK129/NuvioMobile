@@ -69,6 +69,6 @@ internal fun List<ManagedAddon>.toOverview(): AddonOverview =
     )
 
 sealed interface AddAddonResult {
-    data object Success : AddAddonResult
+    data class Success(val manifest: AddonManifest) : AddAddonResult
     data class Error(val message: String) : AddAddonResult
 }

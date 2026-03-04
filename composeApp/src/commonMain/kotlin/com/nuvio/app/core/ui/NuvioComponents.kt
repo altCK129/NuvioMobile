@@ -24,8 +24,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,12 +56,12 @@ fun NuvioScreen(
             .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.safeDrawing),
         contentPadding = PaddingValues(
-            start = 22.dp,
-            top = 14.dp,
-            end = 22.dp,
-            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 28.dp,
+            start = 18.dp,
+            top = 12.dp + nuvioPlatformExtraTopPadding,
+            end = 18.dp,
+            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 22.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         content = content,
     )
 }
@@ -72,12 +75,12 @@ fun NuvioSurfaceCard(
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(24.dp),
         tonalElevation = tonalElevation.dp,
         shadowElevation = 0.dp,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
             content = content,
         )
     }
@@ -100,7 +103,7 @@ fun NuvioScreenHeader(
             color = MaterialTheme.colorScheme.onBackground,
         )
         Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
             content = actions,
         )
@@ -176,9 +179,9 @@ fun NuvioPrimaryButton(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp),
+            .height(52.dp),
         enabled = enabled,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -206,7 +209,7 @@ fun NuvioInputField(
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
         singleLine = true,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         placeholder = {
             Text(
                 text = placeholder,
@@ -236,7 +239,7 @@ fun NuvioInfoBadge(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(999.dp),
             )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Text(
             text = text,
@@ -267,5 +270,84 @@ fun NuvioInlineMetadata(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+fun NuvioStatusModal(
+    title: String,
+    message: String,
+    modifier: Modifier = Modifier,
+    isVisible: Boolean,
+    isBusy: Boolean = false,
+    confirmText: String = "OK",
+    dismissText: String? = null,
+    onConfirm: () -> Unit,
+    onDismiss: (() -> Unit)? = null,
+) {
+    if (!isVisible) return
+
+    BasicAlertDialog(
+        onDismissRequest = {
+            if (!isBusy) {
+                onDismiss?.invoke() ?: onConfirm()
+            }
+        },
+    ) {
+        Surface(
+            modifier = modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(24.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+            ) {
+                if (isBusy) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 2.5.dp,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    if (!isBusy && dismissText != null && onDismiss != null) {
+                        Button(
+                            onClick = onDismiss,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                            ),
+                        ) {
+                            Text(dismissText)
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
+                    Button(
+                        onClick = onConfirm,
+                        enabled = !isBusy,
+                        shape = RoundedCornerShape(16.dp),
+                    ) {
+                        Text(confirmText)
+                    }
+                }
+            }
+        }
     }
 }

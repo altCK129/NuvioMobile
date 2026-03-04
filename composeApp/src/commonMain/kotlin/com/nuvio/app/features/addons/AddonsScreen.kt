@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,7 +45,9 @@ import com.nuvio.app.core.ui.NuvioPrimaryButton
 import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.NuvioSectionLabel
+import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.NuvioSurfaceCard
+import kotlinx.coroutines.launch
 
 @Composable
 fun AddonsScreen(
@@ -55,9 +58,11 @@ fun AddonsScreen(
     }
 
     val uiState by AddonRepository.uiState.collectAsStateWithLifecycle()
+    val coroutineScope = rememberCoroutineScope()
     var addonUrl by rememberSaveable { mutableStateOf("") }
     var formMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var sortAscending by rememberSaveable { mutableStateOf(true) }
+    var installModalState by remember { mutableStateOf<AddonInstallModalState?>(null) }
 
     val sortedAddons = remember(uiState.addons, sortAscending) {
         if (sortAscending) {
@@ -99,14 +104,25 @@ fun AddonsScreen(
                     formMessage = null
                 },
                 onAddClick = {
-                    when (val result = AddonRepository.addAddon(addonUrl)) {
-                        AddAddonResult.Success -> {
-                            addonUrl = ""
-                            formMessage = null
-                        }
+                    val requestedUrl = addonUrl.trim()
+                    if (requestedUrl.isBlank()) {
+                        formMessage = "Enter an addon URL."
+                        return@AddAddonCard
+                    }
 
-                        is AddAddonResult.Error -> {
-                            formMessage = result.message
+                    formMessage = null
+                    installModalState = AddonInstallModalState.Checking
+                    coroutineScope.launch {
+                        val result = AddonRepository.addAddon(requestedUrl)
+                        installModalState = when (result) {
+                            is AddAddonResult.Success -> {
+                                addonUrl = ""
+                                AddonInstallModalState.Success(result.manifest.name)
+                            }
+
+                            is AddAddonResult.Error -> {
+                                AddonInstallModalState.Error(result.message)
+                            }
                         }
                     }
                 },
@@ -131,6 +147,22 @@ fun AddonsScreen(
                 )
             }
         }
+    }
+
+    val modalState = installModalState
+    if (modalState != null) {
+        NuvioStatusModal(
+            title = modalState.title,
+            message = modalState.message,
+            isVisible = true,
+            isBusy = modalState.isBusy,
+            confirmText = modalState.confirmText,
+            onConfirm = {
+                if (!modalState.isBusy) {
+                    installModalState = null
+                }
+            },
+        )
     }
 }
 
@@ -216,7 +248,7 @@ private fun AddAddonCard(
         )
         Spacer(modifier = Modifier.height(18.dp))
         NuvioPrimaryButton(
-            text = "Add Addon",
+            text = "Install Addon",
             enabled = addonUrl.isNotBlank(),
             onClick = onAddClick,
         )
@@ -228,6 +260,38 @@ private fun AddAddonCard(
                 color = MaterialTheme.colorScheme.error,
             )
         }
+    }
+}
+
+private sealed interface AddonInstallModalState {
+    val title: String
+    val message: String
+    val confirmText: String
+    val isBusy: Boolean
+
+    data object Checking : AddonInstallModalState {
+        override val title: String = "Checking Addon"
+        override val message: String = "Validating the manifest URL and loading addon details before install."
+        override val confirmText: String = "Installing"
+        override val isBusy: Boolean = true
+    }
+
+    data class Success(
+        private val addonName: String,
+    ) : AddonInstallModalState {
+        override val title: String = "Addon Installed"
+        override val message: String = "$addonName was validated and added successfully."
+        override val confirmText: String = "Done"
+        override val isBusy: Boolean = false
+    }
+
+    data class Error(
+        private val reason: String,
+    ) : AddonInstallModalState {
+        override val title: String = "Install Failed"
+        override val message: String = reason
+        override val confirmText: String = "Close"
+        override val isBusy: Boolean = false
     }
 }
 

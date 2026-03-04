@@ -33,45 +33,45 @@ private val NuvioDarkColors = darkColorScheme(
 
 private val NuvioTypography = Typography(
     displayLarge = TextStyle(
-        fontSize = 42.sp,
-        lineHeight = 46.sp,
+        fontSize = 38.sp,
+        lineHeight = 42.sp,
         fontWeight = FontWeight.Black,
         letterSpacing = (-1.2).sp,
     ),
     headlineLarge = TextStyle(
-        fontSize = 30.sp,
-        lineHeight = 34.sp,
+        fontSize = 26.sp,
+        lineHeight = 30.sp,
         fontWeight = FontWeight.ExtraBold,
         letterSpacing = (-0.8).sp,
     ),
     titleLarge = TextStyle(
-        fontSize = 20.sp,
-        lineHeight = 26.sp,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
         fontWeight = FontWeight.Bold,
     ),
     titleMedium = TextStyle(
-        fontSize = 17.sp,
-        lineHeight = 22.sp,
-        fontWeight = FontWeight.SemiBold,
-    ),
-    bodyLarge = TextStyle(
         fontSize = 16.sp,
-        lineHeight = 24.sp,
-        fontWeight = FontWeight.Medium,
-    ),
-    bodyMedium = TextStyle(
-        fontSize = 15.sp,
-        lineHeight = 22.sp,
-        fontWeight = FontWeight.Normal,
-    ),
-    labelLarge = TextStyle(
-        fontSize = 15.sp,
         lineHeight = 20.sp,
         fontWeight = FontWeight.SemiBold,
     ),
+    bodyLarge = TextStyle(
+        fontSize = 15.sp,
+        lineHeight = 22.sp,
+        fontWeight = FontWeight.Medium,
+    ),
+    bodyMedium = TextStyle(
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        fontWeight = FontWeight.Normal,
+    ),
+    labelLarge = TextStyle(
+        fontSize = 14.sp,
+        lineHeight = 18.sp,
+        fontWeight = FontWeight.SemiBold,
+    ),
     labelMedium = TextStyle(
-        fontSize = 13.sp,
-        lineHeight = 16.sp,
+        fontSize = 12.sp,
+        lineHeight = 14.sp,
         fontWeight = FontWeight.Medium,
         letterSpacing = 0.8.sp,
     ),

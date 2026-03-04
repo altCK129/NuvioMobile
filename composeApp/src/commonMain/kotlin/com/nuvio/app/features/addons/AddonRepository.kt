@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 object AddonRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -35,7 +36,7 @@ object AddonRepository {
         storedUrls.forEach(::refreshAddon)
     }
 
-    fun addAddon(rawUrl: String): AddAddonResult {
+    suspend fun addAddon(rawUrl: String): AddAddonResult {
         val manifestUrl = try {
             normalizeManifestUrl(rawUrl)
         } catch (error: IllegalArgumentException) {
@@ -46,19 +47,32 @@ object AddonRepository {
             return AddAddonResult.Error("That addon is already installed.")
         }
 
+        val manifest = try {
+            withContext(Dispatchers.Default) {
+                val payload = httpGetText(manifestUrl)
+                AddonManifestParser.parse(
+                    manifestUrl = manifestUrl,
+                    payload = payload,
+                )
+            }
+        } catch (error: Throwable) {
+            return AddAddonResult.Error(error.message ?: "Unable to load manifest")
+        }
+
         _uiState.update { current ->
             current.copy(
                 addons = listOf(
                     ManagedAddon(
                         manifestUrl = manifestUrl,
-                        isRefreshing = true,
+                        manifest = manifest,
+                        isRefreshing = false,
+                        errorMessage = null,
                     ),
                 ) + current.addons,
             )
         }
         persist()
-        refreshAddon(manifestUrl)
-        return AddAddonResult.Success
+        return AddAddonResult.Success(manifest)
     }
 
     fun removeAddon(manifestUrl: String) {
