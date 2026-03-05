@@ -216,6 +216,60 @@ function summarizeUrl(url: string): string {
   }
 }
 
+// ---------------------------------------------------------------------------
+// URL validation — HEAD request to check if URL is actually accessible
+// ---------------------------------------------------------------------------
+
+async function validateUrl(url: string, userAgent: string): Promise<boolean> {
+  // Only validate googlevideo.com CDN URLs — other URLs (HLS manifests) are fine
+  if (!url.includes('googlevideo.com')) return true;
+
+  // Check expiry param before making a network request
+  try {
+    const u = new URL(url);
+    const expire = u.searchParams.get('expire');
+    if (expire) {
+      const expiresAt = parseInt(expire, 10) * 1000;
+      if (Date.now() > expiresAt - 30000) {
+        logger.warn('YouTubeExtractor', `URL expired or expiring in <30s: expire=${expire}`);
+        return false;
+      }
+    }
+  } catch { /* ignore URL parse errors */ }
+
+  // Quick HEAD request to confirm URL is accessible
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch(url, {
+      method: 'HEAD',
+      headers: { 'User-Agent': userAgent },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (res.status === 403 || res.status === 401) {
+      logger.warn('YouTubeExtractor', `URL validation failed: HTTP ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    clearTimeout(timer);
+    // Network error or timeout — assume valid and let the player try
+    logger.warn('YouTubeExtractor', `URL validation request failed (assuming valid):`, err);
+    return true;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// android_vr preferred selection — only fall back to other clients if
+// android_vr returned zero formats (likely PO token required for others)
+// ---------------------------------------------------------------------------
+
+function filterPreferAndroidVr(items: StreamCandidate[]): StreamCandidate[] {
+  const fromVr = items.filter(c => c.client === 'android_vr');
+  return fromVr.length > 0 ? fromVr : items;
+}
+
 function sortCandidates(items: StreamCandidate[]): StreamCandidate[] {
   return [...items].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
@@ -596,18 +650,23 @@ export class YouTubeExtractor {
       }
     }
 
-    const bestProgressive = sortCandidates(progressive)[0] ?? null;
+    // Prefer android_vr formats exclusively — other clients may require PO tokens
+    // and return URLs that 403 at the CDN level during playback
+    const preferredProgressive = sortCandidates(filterPreferAndroidVr(progressive));
     const bestAdaptiveVideo = pickBestForClient(adaptiveVideo, PREFERRED_ADAPTIVE_CLIENT);
     const bestAdaptiveAudio = pickBestForClient(adaptiveAudio, PREFERRED_ADAPTIVE_CLIENT);
 
     if (bestHls) logger.info('YouTubeExtractor', `Best HLS: ${bestHls.height}p ${bestHls.bandwidth}bps`);
-    if (bestProgressive) logger.info('YouTubeExtractor', `Best progressive: ${bestProgressive.height}p`);
+    if (preferredProgressive[0]) logger.info('YouTubeExtractor', `Best progressive: ${preferredProgressive[0].height}p client=${preferredProgressive[0].client}`);
     if (bestAdaptiveVideo) logger.info('YouTubeExtractor', `Best adaptive video: ${bestAdaptiveVideo.height}p client=${bestAdaptiveVideo.client}`);
     if (bestAdaptiveAudio) logger.info('YouTubeExtractor', `Best adaptive audio: ${bestAdaptiveAudio.bitrate}bps client=${bestAdaptiveAudio.client}`);
 
-    // Step 4: select final source
+    // VR client user agent used for CDN URL validation
+    const vrUserAgent = CLIENTS.find(c => c.key === 'android_vr')!.userAgent;
+
+    // Step 4: select final source with URL validation
     // Priority: HLS > progressive muxed
-    // (No DASH/MPD — react-native-video cannot merge separate video+audio streams)
+    // HLS manifests don't need validation — they're not CDN segment URLs
     if (bestHls) {
       logger.info('YouTubeExtractor', `Using HLS: ${summarizeUrl(bestHls.manifestUrl)}`);
       return {
@@ -618,25 +677,33 @@ export class YouTubeExtractor {
       };
     }
 
-    if (bestProgressive) {
-      logger.info('YouTubeExtractor', `Using progressive: ${summarizeUrl(bestProgressive.url)}`);
-      return {
-        videoUrl: bestProgressive.url,
-        audioUrl: null,
-        quality: `${bestProgressive.height}p`,
-        videoId,
-      };
+    // Validate progressive candidates in order, return first valid one
+    for (const candidate of preferredProgressive) {
+      const valid = await validateUrl(candidate.url, vrUserAgent);
+      if (valid) {
+        logger.info('YouTubeExtractor', `Using progressive: ${summarizeUrl(candidate.url)} ${candidate.height}p`);
+        return {
+          videoUrl: candidate.url,
+          audioUrl: null,
+          quality: `${candidate.height}p`,
+          videoId,
+        };
+      }
+      logger.warn('YouTubeExtractor', `Progressive URL invalid, trying next candidate`);
     }
 
     // Last resort: video-only adaptive (no audio, but beats nothing)
     if (bestAdaptiveVideo) {
-      logger.warn('YouTubeExtractor', `Using video-only adaptive (no audio): ${bestAdaptiveVideo.height}p`);
-      return {
-        videoUrl: bestAdaptiveVideo.url,
-        audioUrl: null,
-        quality: `${bestAdaptiveVideo.height}p`,
-        videoId,
-      };
+      const valid = await validateUrl(bestAdaptiveVideo.url, vrUserAgent);
+      if (valid) {
+        logger.warn('YouTubeExtractor', `Using video-only adaptive (no audio): ${bestAdaptiveVideo.height}p`);
+        return {
+          videoUrl: bestAdaptiveVideo.url,
+          audioUrl: null,
+          quality: `${bestAdaptiveVideo.height}p`,
+          videoId,
+        };
+      }
     }
 
     logger.warn('YouTubeExtractor', `No playable source for videoId=${videoId}`);
