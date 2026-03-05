@@ -1156,7 +1156,7 @@ const HeroSection: React.FC<HeroSectionProps> = memo(({
 
           // Fetch video list from TMDB to get the YouTube video ID
           const videosRes = await fetch(
-            `https://api.themoviedb.org/3/${contentType}/${resolvedTmdbId}/videos?api_key=d131017ccc6e5462a81c9304d21476de&language=en-US`
+            `https://api.themoviedb.org/3/${contentType}/${resolvedTmdbId}/videos?api_key=${tmdbApiKey}`
           );
 
           if (!alive) return;
