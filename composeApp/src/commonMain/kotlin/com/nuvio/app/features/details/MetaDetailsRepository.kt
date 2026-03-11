@@ -17,9 +17,25 @@ object MetaDetailsRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _uiState = MutableStateFlow(MetaDetailsUiState())
     val uiState: StateFlow<MetaDetailsUiState> = _uiState.asStateFlow()
+    private var activeRequestKey: String? = null
 
     fun load(type: String, id: String) {
         log.d { "load() called — type=$type id=$id" }
+        val requestKey = "$type:$id"
+        val currentState = _uiState.value
+
+        if (currentState.meta?.type == type && currentState.meta.id == id && !currentState.isLoading) {
+            log.d { "Skipping reload for cached meta — type=$type id=$id" }
+            activeRequestKey = requestKey
+            return
+        }
+
+        if (currentState.isLoading && activeRequestKey == requestKey) {
+            log.d { "Request already in flight — type=$type id=$id" }
+            return
+        }
+
+        activeRequestKey = requestKey
         _uiState.value = MetaDetailsUiState(isLoading = true)
 
         scope.launch {
@@ -38,6 +54,7 @@ object MetaDetailsRepository {
                 _uiState.value = MetaDetailsUiState(
                     errorMessage = "No addon provides meta for this content.",
                 )
+                activeRequestKey = null
                 return@launch
             }
 
@@ -45,6 +62,7 @@ object MetaDetailsRepository {
                 val result = tryFetchMeta(manifest, type, id)
                 if (result != null) {
                     _uiState.value = MetaDetailsUiState(meta = result)
+                    activeRequestKey = requestKey
                     return@launch
                 }
             }
@@ -52,10 +70,12 @@ object MetaDetailsRepository {
             _uiState.value = MetaDetailsUiState(
                 errorMessage = "Could not load details from any addon.",
             )
+            activeRequestKey = null
         }
     }
 
     fun clear() {
+        activeRequestKey = null
         _uiState.value = MetaDetailsUiState()
     }
 

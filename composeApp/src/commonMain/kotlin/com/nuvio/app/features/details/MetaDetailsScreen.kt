@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,8 +31,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.nuvioPlatformExtraBottomPadding
@@ -49,18 +53,31 @@ fun MetaDetailsScreen(
     modifier: Modifier = Modifier,
 ) {
     val uiState by MetaDetailsRepository.uiState.collectAsStateWithLifecycle()
+    val screenAlpha = remember(type, id) { Animatable(0f) }
+    val requestedMeta = uiState.meta?.takeIf { it.type == type && it.id == id }
+    val needsFreshLoad = requestedMeta == null && !uiState.isLoading
 
-    LaunchedEffect(type, id) {
+    LaunchedEffect(type, id, needsFreshLoad) {
+        if (!needsFreshLoad) {
+            screenAlpha.snapTo(1f)
+            return@LaunchedEffect
+        }
+        screenAlpha.snapTo(0f)
+        screenAlpha.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 220),
+        )
         MetaDetailsRepository.load(type, id)
     }
 
     Box(
         modifier = modifier
             .fillMaxSize()
+            .alpha(screenAlpha.value)
             .background(MaterialTheme.colorScheme.background),
     ) {
         when {
-            uiState.isLoading -> {
+            uiState.isLoading || (uiState.meta != null && requestedMeta == null) -> {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center),
                     color = MaterialTheme.colorScheme.primary,
@@ -88,8 +105,8 @@ fun MetaDetailsScreen(
                 }
             }
 
-            uiState.meta != null -> {
-                val meta = uiState.meta!!
+            requestedMeta != null -> {
+                val meta = requestedMeta
                 val scrollState = rememberScrollState()
                 Column(
                     modifier = Modifier
