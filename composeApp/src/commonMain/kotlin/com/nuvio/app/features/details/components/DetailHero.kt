@@ -30,37 +30,40 @@ fun DetailHero(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(0.75f)
+            .graphicsLayer {
+                clip = true
+            },
     ) {
-        val imageUrl = meta.background ?: meta.poster
-        if (imageUrl != null) {
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = meta.name,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(0.75f)
-                    .graphicsLayer {
-                        translationY = scrollOffset * 0.5f
-                    },
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(0.75f)
-                    .background(MaterialTheme.colorScheme.surface),
-            )
-        }
-
-        // Gradient overlay at the bottom
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(0.75f),
+                .fillMaxSize(),
             contentAlignment = Alignment.BottomCenter,
         ) {
+            val imageUrl = meta.background ?: meta.poster
+            if (imageUrl != null) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = meta.name,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            translationY = scrollOffset * 0.5f
+                            scaleX = 1.08f
+                            scaleY = 1.08f
+                        },
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface),
+                )
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
