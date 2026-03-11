@@ -71,7 +71,7 @@ fun App() {
     NuvioTheme {
         val navController = rememberNavController()
         val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-        var selectedTab by rememberSaveable { mutableStateOf(AppScreenTab.Addons) }
+        var selectedTab by rememberSaveable { mutableStateOf(AppScreenTab.Home) }
 
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
