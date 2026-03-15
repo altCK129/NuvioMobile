@@ -1647,21 +1647,16 @@ class CatalogService {
 
       if (controller.cancelled) return;
 
-      // Sort by catalogIndex (addon manifest order + position within addon), then dedup and emit
+      // Sort by catalogIndex (addon manifest order + position within addon) then emit.
+      // No cross-section dedup — each section is shown separately so duplicates across
+      // sections are intentional (e.g. same movie in Cinemeta and People Search).
       allPendingSections.sort((a, b) => a.catalogIndex - b.catalogIndex);
 
-      const globalSeen = new Set<string>();
       for (const section of allPendingSections) {
         if (controller.cancelled) return;
-        const unique = section.results.filter(item => {
-          const key = `${item.type}:${item.id}`;
-          if (globalSeen.has(key)) return false;
-          globalSeen.add(key);
-          return true;
-        });
-        if (unique.length > 0) {
-          logger.log(`Emitting ${unique.length} results from ${section.sectionName}`);
-          onAddonResults({ addonId: section.addonId, addonName: section.addonName, sectionName: section.sectionName, catalogIndex: section.catalogIndex, results: unique });
+        if (section.results.length > 0) {
+          logger.log(`Emitting ${section.results.length} results from ${section.sectionName}`);
+          onAddonResults({ addonId: section.addonId, addonName: section.addonName, sectionName: section.sectionName, catalogIndex: section.catalogIndex, results: section.results });
         }
       }
     })();
