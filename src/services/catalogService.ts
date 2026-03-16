@@ -1432,7 +1432,7 @@ class CatalogService {
     logger.log(`Found ${searchableAddons.length} searchable addons:`, searchableAddons.map(a => a.name).join(', '));
 
     // Search each addon and keep results grouped
-    for (const addon of searchableAddons) {
+    for (const [addonIndex, addon] of searchableAddons.entries()) {
       // Get the manifest to ensure we have the correct URL
       const manifest = manifestMap.get(addon.id);
       if (!manifest) {
@@ -1473,6 +1473,8 @@ class CatalogService {
         byAddon.push({
           addonId: addon.id,
           addonName: addon.name,
+          sectionName: addon.name,
+          catalogIndex: addonIndex,
           results: uniqueAddonResults,
         });
       }
