@@ -1,0 +1,104 @@
+name: Build Release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      flavor:
+        description: 'Choose the build flavor'
+        required: true
+        default: 'Full'
+        type: choice
+        options:
+          - Full
+          - Playstore
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Generate self-signed keystore
+        run: |
+          keytool -genkeypair \
+            -alias nuvio-release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 365 \
+            -keystore ${{ github.workspace }}/nuvio-release.keystore \
+            -storepass nuvio1234 \
+            -keypass nuvio1234 \
+            -dname "CN=Nuvio CI, OU=CI, O=Nuvio, L=Unknown, ST=Unknown, C=US"
+
+      - name: Write local.properties
+        run: |
+          printf 'SUPABASE_URL=https://dpyhjjcoabcglfmgecug.supabase.co\n' > local.properties
+          printf 'SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRweWhqamNvYWJjZ2xmbWdlY3VnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3ODYyNDcsImV4cCI6MjA4NjM2MjI0N30.U-3QSNDdpsnvRk_7ZL419AFTOtggHJJcmkodxeXjbkg\n' >> local.properties
+          printf 'TRAKT_CLIENT_ID=5783db7c46a5b22f072d4b224f9bd7dc2cbaba66dbe3515d1feb59e3ca72394c\n' >> local.properties
+          printf 'TRAKT_CLIENT_SECRET=bf6e7561dafee902f5a2a67d2b31feac1563632f331f3958c978aff6389ea384\n' >> local.properties
+          printf 'TRAKT_REDIRECT_URI=nuvio://auth/trakt\n' >> local.properties
+          printf 'INTRODB_API_URL=https://api.introdb.app/\n' >> local.properties
+          printf 'TMDB_API_KEY=01926d2187b6a5d861eefc750e9df3e3\n' >> local.properties
+          printf 'NUVIO_RELEASE_STORE_FILE=${{ github.workspace }}/nuvio-release.keystore\n' >> local.properties
+          printf 'NUVIO_RELEASE_STORE_PASSWORD=nuvio1234\n' >> local.properties
+          printf 'NUVIO_RELEASE_KEY_ALIAS=nuvio-release\n' >> local.properties
+          printf 'NUVIO_RELEASE_KEY_PASSWORD=nuvio1234\n' >> local.properties
+
+      - name: Set flavor variables
+        id: flavor
+        run: |
+          FLAVOR="${{ github.event.inputs.flavor }}"
+          FLAVOR_LOWER=$(echo "$FLAVOR" | tr '[:upper:]' '[:lower:]')
+          echo "name=${FLAVOR_LOWER}" >> $GITHUB_OUTPUT
+          if [ "$FLAVOR_LOWER" = "full" ]; then
+            echo "plugins_enabled=true" >> $GITHUB_OUTPUT
+            echo "trailer_mode=IN_APP" >> $GITHUB_OUTPUT
+          else
+            echo "plugins_enabled=false" >> $GITHUB_OUTPUT
+            echo "trailer_mode=EXTERNAL" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate AppFeaturePolicy and TrailerPlaybackMode
+        run: |
+          POLICY_DIR="composeApp/src/ciGenerated/kotlin/com/nuvio/app/core/build"
+          mkdir -p "$POLICY_DIR"
+
+          printf 'package com.nuvio.app.core.build\n\nenum class TrailerPlaybackMode {\n    IN_APP,\n    EXTERNAL,\n    DISABLED\n}\n' > "$POLICY_DIR/TrailerPlaybackMode.kt"
+
+          PLUGINS_ENABLED="${{ steps.flavor.outputs.plugins_enabled }}"
+          TRAILER_MODE="${{ steps.flavor.outputs.trailer_mode }}"
+
+          printf 'package com.nuvio.app.core.build\n\nobject AppFeaturePolicy {\n    val pluginsEnabled: Boolean = %s\n    val trailerPlaybackMode: TrailerPlaybackMode = TrailerPlaybackMode.%s\n}\n' "$PLUGINS_ENABLED" "$TRAILER_MODE" > "$POLICY_DIR/AppFeaturePolicy.kt"
+
+      - name: Register ciGenerated source dir via Gradle init script
+        run: |
+          mkdir -p "$HOME/.gradle/init.d"
+          printf 'allprojects {\n    afterEvaluate { project ->\n        if (project.name == "composeApp") {\n            try {\n                project.kotlin.sourceSets.getByName("commonMain").kotlin.srcDir(\n                    new File(project.projectDir, "src/ciGenerated/kotlin")\n                )\n            } catch (ignored) {}\n        }\n    }\n}\n' > "$HOME/.gradle/init.d/ci-feature-policy.gradle"
+
+      - name: Build release APK
+        run: |
+          FLAVOR="${{ steps.flavor.outputs.name }}"
+          if [ "$FLAVOR" = "full" ]; then
+            TASK="assembleFullRelease"
+          else
+            TASK="assemblePlaystoreRelease"
+          fi
+          ./gradlew :composeApp:$TASK
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuvio-${{ steps.flavor.outputs.name }}-release-apk
+          path: composeApp/build/outputs/apk/${{ steps.flavor.outputs.name }}/release/*.apk
+          retention-days: 7
