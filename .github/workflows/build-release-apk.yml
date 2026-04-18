@@ -69,22 +69,6 @@ jobs:
             echo "trailer_mode=EXTERNAL" >> $GITHUB_OUTPUT
           fi
 
-      - name: Generate AppFeaturePolicy and TrailerPlaybackMode
-        run: |
-          POLICY_DIR="composeApp/src/ciGenerated/kotlin/com/nuvio/app/core/build"
-          mkdir -p "$POLICY_DIR"
-
-          printf 'package com.nuvio.app.core.build\n\nenum class TrailerPlaybackMode {\n    IN_APP,\n    EXTERNAL,\n    DISABLED\n}\n' > "$POLICY_DIR/TrailerPlaybackMode.kt"
-
-          PLUGINS_ENABLED="${{ steps.flavor.outputs.plugins_enabled }}"
-          TRAILER_MODE="${{ steps.flavor.outputs.trailer_mode }}"
-
-          printf 'package com.nuvio.app.core.build\n\nobject AppFeaturePolicy {\n    val pluginsEnabled: Boolean = %s\n    val trailerPlaybackMode: TrailerPlaybackMode = TrailerPlaybackMode.%s\n}\n' "$PLUGINS_ENABLED" "$TRAILER_MODE" > "$POLICY_DIR/AppFeaturePolicy.kt"
-
-      - name: Register ciGenerated source dir via Gradle init script
-        run: |
-          mkdir -p "$HOME/.gradle/init.d"
-          printf 'allprojects {\n    afterEvaluate { project ->\n        if (project.name == "composeApp") {\n            try {\n                project.kotlin.sourceSets.getByName("commonMain").kotlin.srcDir(\n                    new File(project.projectDir, "src/ciGenerated/kotlin")\n                )\n            } catch (ignored) {}\n        }\n    }\n}\n' > "$HOME/.gradle/init.d/ci-feature-policy.gradle"
 
       - name: Build release APK
         run: |
