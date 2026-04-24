@@ -308,7 +308,7 @@ actual object PlayerSettingsStorage {
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(decoderPriorityKey)
             if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 1)
+                sharedPreferences.getInt(key, 2)
             } else {
                 null
             }
