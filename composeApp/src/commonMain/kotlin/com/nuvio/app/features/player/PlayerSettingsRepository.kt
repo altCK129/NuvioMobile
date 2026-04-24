@@ -20,7 +20,7 @@ data class PlayerSettingsUiState(
     val subtitleStyle: SubtitleStyleState = SubtitleStyleState.DEFAULT,
     val streamReuseLastLinkEnabled: Boolean = false,
     val streamReuseLastLinkCacheHours: Int = 24,
-    val decoderPriority: Int = 1,
+    val decoderPriority: Int = 2,
     val mapDV7ToHevc: Boolean = false,
     val tunnelingEnabled: Boolean = false,
     val streamAutoPlayMode: StreamAutoPlayMode = StreamAutoPlayMode.MANUAL,
