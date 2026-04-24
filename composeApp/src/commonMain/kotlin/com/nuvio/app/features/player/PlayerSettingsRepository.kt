@@ -99,7 +99,7 @@ object PlayerSettingsRepository {
         subtitleStyle = SubtitleStyleState.DEFAULT
         streamReuseLastLinkEnabled = false
         streamReuseLastLinkCacheHours = 24
-        decoderPriority = 1
+        decoderPriority = 2
         mapDV7ToHevc = false
         tunnelingEnabled = false
         streamAutoPlayMode = StreamAutoPlayMode.MANUAL
