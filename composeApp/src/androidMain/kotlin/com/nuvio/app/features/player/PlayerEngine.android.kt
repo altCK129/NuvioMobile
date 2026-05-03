@@ -28,6 +28,7 @@ import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -84,10 +85,8 @@ actual fun PlatformPlayerSurface(
     val latestOnError = rememberUpdatedState(onError)
     val coroutineScope = rememberCoroutineScope()
 
-    val playerSettings = remember {
-        PlayerSettingsRepository.ensureLoaded()
-        PlayerSettingsRepository.uiState.value
-    }
+    PlayerSettingsRepository.ensureLoaded()
+    val playerSettings by PlayerSettingsRepository.uiState.collectAsStateWithLifecycle()
 
     val sanitizedSourceHeaders = remember(sourceHeaders) {
         sanitizePlaybackHeaders(sourceHeaders)
@@ -100,7 +99,7 @@ actual fun PlatformPlayerSurface(
         LibassRenderType.valueOf(playerSettings.libassRenderType)
     }.getOrDefault(LibassRenderType.CUES)
 
-    val exoPlayer = remember(sourceUrl, sourceAudioUrl, sanitizedSourceHeaders, sanitizedSourceResponseHeaders) {
+    val exoPlayer = remember(sourceUrl, sourceAudioUrl, sanitizedSourceHeaders, sanitizedSourceResponseHeaders, playerSettings.decoderPriority) {
         val renderersFactory = DefaultRenderersFactory(context)
             .setExtensionRendererMode(playerSettings.decoderPriority)
             .setMapDV7ToHevc(playerSettings.mapDV7ToHevc)
