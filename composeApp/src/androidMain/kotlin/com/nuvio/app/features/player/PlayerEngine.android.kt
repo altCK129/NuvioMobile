@@ -615,11 +615,29 @@ private fun ExoPlayer.extractSubtitleTracks(): List<SubtitleTrack> {
         if (group.type != C.TRACK_TYPE_TEXT) continue
         val format = group.mediaTrackGroup.getFormat(0)
         val hasForcedSelectionFlag = (format.selectionFlags and C.SELECTION_FLAG_FORCED) != 0
+        val mime = format.sampleMimeType?.lowercase()
+        val codecLabel = when {
+            mime == null -> null
+            mime.contains("subrip") || mime.contains("srt") -> "SRT"
+            mime.contains("vtt") || mime.contains("webvtt") -> "VTT"
+            mime.contains("ssa") || mime.contains("ass") -> "ASS"
+            mime.contains("ttml") || mime.contains("dfxp") -> "TTML"
+            mime.contains("pgs") || mime.contains("dvb_subtitle") || mime.contains("dvbsub") -> "PGS"
+            mime.contains("dvd_subtitle") || mime.contains("vobsub") -> "VobSub"
+            mime.contains("tx3g") -> "TX3G"
+            else -> null
+        }
+        val baseLabel = format.label ?: ""
+        val label = if (codecLabel != null) {
+            if (baseLabel.isNotBlank()) "$baseLabel ($codecLabel)" else codecLabel
+        } else {
+            baseLabel
+        }
         tracks.add(
             SubtitleTrack(
                 index = idx,
                 id = format.id ?: idx.toString(),
-                label = format.label ?: "",
+                label = label,
                 language = format.language,
                 isSelected = group.isSelected,
                 isForced = inferForcedSubtitleTrack(
