@@ -586,7 +586,11 @@ private fun ExoPlayer.extractAudioTracks(): List<AudioTrack> {
             mime.contains("dts") -> "DTS"
             else -> null
         }
-        val resolvedLanguage = format.language?.let { lang -> Locale(lang).displayLanguage.takeIf { name -> name.isNotBlank() && name != lang } }
+        val resolvedLanguage = format.language?.let { lang ->
+            val localeTag = androidx.core.os.LocaleListCompat.forLanguageTags(lang).get(0)
+            val display = localeTag?.displayLanguage?.takeIf { it.isNotBlank() && it != lang }
+            display ?: Locale(lang).displayLanguage.takeIf { it.isNotBlank() && it != lang }
+        }
         val baseName = format.label?.takeIf { it.isNotBlank() }
             ?: resolvedLanguage
             ?: format.language
