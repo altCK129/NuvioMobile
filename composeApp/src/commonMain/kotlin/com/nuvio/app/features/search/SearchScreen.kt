@@ -44,6 +44,7 @@ import com.nuvio.app.core.ui.NuvioInputField
 import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioNetworkOfflineCard
 import com.nuvio.app.core.ui.NuvioScreenHeader
+import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.HomeCatalogRowSection
@@ -55,6 +56,22 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.compose_nav_search
+import nuvio.composeapp.generated.resources.compose_search_clear
+import nuvio.composeapp.generated.resources.compose_search_discover_title
+import nuvio.composeapp.generated.resources.compose_search_empty_failed_message
+import nuvio.composeapp.generated.resources.compose_search_empty_failed_title
+import nuvio.composeapp.generated.resources.compose_search_empty_no_active_addons_message
+import nuvio.composeapp.generated.resources.compose_search_empty_no_active_addons_title
+import nuvio.composeapp.generated.resources.compose_search_empty_no_results_message
+import nuvio.composeapp.generated.resources.compose_search_empty_no_results_title
+import nuvio.composeapp.generated.resources.compose_search_empty_no_search_catalogs_message
+import nuvio.composeapp.generated.resources.compose_search_empty_no_search_catalogs_title
+import nuvio.composeapp.generated.resources.compose_search_placeholder
+import nuvio.composeapp.generated.resources.compose_search_recent_searches
+import nuvio.composeapp.generated.resources.compose_search_remove_recent_search
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun SearchScreen(
@@ -78,14 +95,9 @@ fun SearchScreen(
     var lastRequestedQuery by rememberSaveable { mutableStateOf<String?>(null) }
     var observedOfflineState by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
-    val headerTitle by remember(query, listState) {
+    val discoverInFocus by remember(query, listState) {
         derivedStateOf {
-            if (query.isNotBlank()) {
-                "Search"
-            } else {
-                val discoverInFocus = listState.firstVisibleItemIndex > 0
-                if (discoverInFocus) "Discover" else "Search"
-            }
+            query.isBlank() && listState.firstVisibleItemIndex > 0
         }
     }
 
@@ -191,6 +203,11 @@ fun SearchScreen(
         val homeSectionPadding = remember(maxWidth) {
             homeSectionHorizontalPaddingForWidth(maxWidth.value)
         }
+        val headerTitle = when {
+            query.isNotBlank() -> stringResource(Res.string.compose_nav_search)
+            discoverInFocus -> stringResource(Res.string.compose_search_discover_title)
+            else -> stringResource(Res.string.compose_nav_search)
+        }
 
         NuvioScreen(
             horizontalPadding = 0.dp,
@@ -212,13 +229,13 @@ fun SearchScreen(
                     NuvioInputField(
                         value = query,
                         onValueChange = { query = it },
-                        placeholder = "Search movies, shows...",
+                        placeholder = stringResource(Res.string.compose_search_placeholder),
                         trailingContent = if (query.isNotBlank()) {
                             {
                                 IconButton(onClick = { query = "" }) {
                                     Icon(
                                         imageVector = Icons.Rounded.Close,
-                                        contentDescription = "Clear search",
+                                        contentDescription = stringResource(Res.string.compose_search_clear),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
@@ -287,9 +304,10 @@ fun SearchScreen(
 
                 else -> {
                     items(
-                        items = uiState.sections,
-                        key = { section -> section.key },
-                    ) { section ->
+                        items = uiState.sections.withDuplicateSafeLazyKeys { section -> section.key },
+                        key = { section -> section.lazyKey },
+                    ) { keyedSection ->
+                        val section = keyedSection.value
                         HomeCatalogRowSection(
                             section = section,
                             modifier = Modifier.padding(bottom = 12.dp),
@@ -336,23 +354,23 @@ private fun SearchEmptyStateCard(
 
     when (reason) {
         SearchEmptyStateReason.NoActiveAddons -> {
-            title = "No active addons"
-            message = "Install and validate at least one addon before searching."
+            title = stringResource(Res.string.compose_search_empty_no_active_addons_title)
+            message = stringResource(Res.string.compose_search_empty_no_active_addons_message)
         }
 
         SearchEmptyStateReason.NoSearchCatalogs -> {
-            title = "No searchable catalogs"
-            message = "Your installed addons do not expose catalog search."
+            title = stringResource(Res.string.compose_search_empty_no_search_catalogs_title)
+            message = stringResource(Res.string.compose_search_empty_no_search_catalogs_message)
         }
 
         SearchEmptyStateReason.RequestFailed -> {
-            title = "Search failed"
-            message = errorMessage ?: "Installed addons failed to return valid search results."
+            title = stringResource(Res.string.compose_search_empty_failed_title)
+            message = errorMessage ?: stringResource(Res.string.compose_search_empty_failed_message)
         }
 
         SearchEmptyStateReason.NoResults, null -> {
-            title = "No results found"
-            message = "Installed searchable catalogs did not return any matches for this query."
+            title = stringResource(Res.string.compose_search_empty_no_results_title)
+            message = stringResource(Res.string.compose_search_empty_no_results_message)
         }
     }
 
@@ -377,7 +395,7 @@ private fun SearchRecentSection(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text = "Recent Searches",
+            text = stringResource(Res.string.compose_search_recent_searches),
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onBackground,
         )
@@ -439,7 +457,7 @@ private fun SearchRecentRow(
         IconButton(onClick = onRemovePress) {
             Icon(
                 imageVector = Icons.Rounded.Close,
-                contentDescription = "Remove recent search",
+                contentDescription = stringResource(Res.string.compose_search_remove_recent_search),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

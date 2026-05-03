@@ -52,6 +52,8 @@ import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.features.home.MetaPreview
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 
 private const val HERO_BACKGROUND_PARALLAX = 0.055f
@@ -63,7 +65,7 @@ private const val HERO_SCROLL_UP_SCALE_MULTIPLIER = 0.002f
 private const val HERO_SCROLL_MAX_SCALE = 1.3f
 private const val HERO_SWIPE_THRESHOLD_FRACTION = 0.16f
 private const val HERO_SWIPE_VELOCITY_THRESHOLD = 300f
-private const val MOBILE_HERO_VIEWPORT_RATIO = 0.78f
+private const val MOBILE_HERO_VIEWPORT_RATIO = 0.82f
 private const val MOBILE_HERO_MIN_HEIGHT_DP = 360f
 private const val MOBILE_HERO_MAX_HEIGHT_DP = 760f
 
@@ -256,7 +258,7 @@ fun HomeHeroSection(
                             shape = RoundedCornerShape(40.dp),
                         ) {
                             Text(
-                                text = "View Details",
+                                text = stringResource(Res.string.home_view_details),
                                 modifier = Modifier.padding(horizontal = 28.dp, vertical = 12.dp),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,

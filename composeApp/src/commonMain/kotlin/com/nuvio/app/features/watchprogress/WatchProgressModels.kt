@@ -185,27 +185,16 @@ internal fun WatchProgressEntry.toContinueWatchingItem(): ContinueWatchingItem {
         ?.takeIf { durationMs <= 0L && it > 0f }
         ?.let { explicitPercent -> (explicitPercent / 100f).coerceIn(0f, 1f) }
 
-    val subtitle = if (normalizedEntry.seasonNumber != null && normalizedEntry.episodeNumber != null) {
-        buildString {
-            append("S")
-            append(normalizedEntry.seasonNumber)
-            append("E")
-            append(normalizedEntry.episodeNumber)
-            normalizedEntry.episodeTitle?.takeIf { it.isNotBlank() }?.let {
-                append(" • ")
-                append(it)
-            }
-        }
-    } else {
-        "Movie"
-    }
-
     return ContinueWatchingItem(
         parentMetaId = normalizedEntry.parentMetaId,
         parentMetaType = normalizedEntry.parentMetaType,
         videoId = normalizedEntry.videoId,
         title = normalizedEntry.title,
-        subtitle = subtitle,
+        subtitle = buildContinueWatchingEpisodeSubtitle(
+            seasonNumber = normalizedEntry.seasonNumber,
+            episodeNumber = normalizedEntry.episodeNumber,
+            episodeTitle = normalizedEntry.episodeTitle,
+        ),
         imageUrl = normalizedEntry.episodeThumbnail ?: normalizedEntry.background ?: normalizedEntry.poster,
         logo = normalizedEntry.logo,
         poster = normalizedEntry.poster,
@@ -228,20 +217,6 @@ internal fun WatchProgressEntry.toContinueWatchingItem(): ContinueWatchingItem {
 internal fun WatchProgressEntry.toUpNextContinueWatchingItem(
     nextEpisode: MetaVideo,
 ): ContinueWatchingItem {
-    val subtitle = buildString {
-        append("Up Next")
-        if (nextEpisode.season != null && nextEpisode.episode != null) {
-            append(" • S")
-            append(nextEpisode.season)
-            append("E")
-            append(nextEpisode.episode)
-        }
-        nextEpisode.title.takeIf { it.isNotBlank() }?.let {
-            append(" • ")
-            append(it)
-        }
-    }
-
     return ContinueWatchingItem(
         parentMetaId = parentMetaId,
         parentMetaType = parentMetaType,
@@ -252,7 +227,11 @@ internal fun WatchProgressEntry.toUpNextContinueWatchingItem(
             fallbackVideoId = nextEpisode.id,
         ),
         title = title,
-        subtitle = subtitle,
+        subtitle = buildContinueWatchingEpisodeSubtitle(
+            seasonNumber = nextEpisode.season,
+            episodeNumber = nextEpisode.episode,
+            episodeTitle = nextEpisode.title,
+        ),
         imageUrl = nextEpisode.thumbnail ?: episodeThumbnail ?: background ?: poster,
         logo = logo,
         poster = poster,
@@ -270,6 +249,20 @@ internal fun WatchProgressEntry.toUpNextContinueWatchingItem(
         durationMs = 0L,
         progressFraction = 0f,
     )
+}
+
+internal fun buildContinueWatchingEpisodeSubtitle(
+    seasonNumber: Int?,
+    episodeNumber: Int?,
+    episodeTitle: String?,
+): String {
+    val episodeCode = when {
+        seasonNumber != null && episodeNumber != null -> "S${seasonNumber}E${episodeNumber}"
+        episodeNumber != null -> "E${episodeNumber}"
+        else -> null
+    }
+    val title = episodeTitle.orEmpty()
+    return listOfNotNull(episodeCode, title.takeIf { it.isNotBlank() }).joinToString(" • ")
 }
 
 fun buildPlaybackVideoId(
